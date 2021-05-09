@@ -1,4 +1,4 @@
-package _11_input_output._09_byte_streams;
+package _11_input_output._09_writing_binary_data;
 
 import java.util.HashMap;
 import java.util.Map;

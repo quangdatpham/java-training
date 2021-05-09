@@ -1,74 +1,92 @@
-package _11_input_output._18_writing_sequentially;
+package _11_input_output._19_copy_files_and_pipes_with_threads;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
+import java.nio.channels.Pipe;
 
 public class Main {
 
     public static void main(String[] args) {
-        try (FileOutputStream binFile = new FileOutputStream("data.dat");
-             FileChannel binChannel = binFile.getChannel()) {
+        // try {
+        //     RandomAccessFile sourceFile = new RandomAccessFile("data.dat", "rwd");
+        //     FileChannel sourceChannel = sourceFile.getChannel();
+        //
+        //     sourceChannel.position(0); // absolutely copy from index 0
+        //
+        //     RandomAccessFile destFile = new RandomAccessFile("data_copy.dat", "rw");
+        //     FileChannel destFile = destFile.getChannel();
+        //     // long numTransferred = destFile.transferFrom(sourceChannel, 0, sourceChannel.size());
+        //     long numTransferred = sourceChannel.transferTo(0, sourceChannel.size(), destFile);
+        //     System.out.println("Num transferred = " + numTransferred);
+        //
+        //     sourceChannel.close();
+        //     sourceFile.close();
+        //     destFile.close();
+        //     destFile.close();
+        // } catch (FileNotFoundException e) {
+        //     e.printStackTrace();
+        // } catch (IOException e) {
+        //     e.printStackTrace();
+        // }
 
-            byte[] outputBytes = "Hello World!".getBytes();
-            byte[] outputBytes2 = "Nice to meet you".getBytes();
+        try {
+            Pipe pipe = Pipe.open();
+            Runnable writer = new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Pipe.SinkChannel sinkChannel = pipe.sink();
+                        ByteBuffer buffer = ByteBuffer.allocate(56);
 
-            long str1Pos = 0;
-            long int1Pos = outputBytes.length;
-            long int2Pos = int1Pos + Integer.BYTES;
-            long str2Pos = int2Pos + Integer.BYTES;
-            long int3Pos = int2Pos + Integer.BYTES + outputBytes2.length;
+                        for (int i = 0; i < 10; i++) {
+                            String currentTime = "The time is " + System.currentTimeMillis();
 
-            ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+                            buffer.put(currentTime.getBytes());
+                            buffer.flip();
 
-            binChannel.position(str1Pos);
-            binChannel.write(ByteBuffer.wrap(outputBytes));
+                            while (buffer.hasRemaining()) {
+                                sinkChannel.write(buffer);
+                            }
 
-            buffer.putInt(123);
-            buffer.flip();
-            binChannel.position(int1Pos);
-            binChannel.write(buffer);
+                            buffer.clear();
+                            Thread.sleep(500);
+                        }
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            };
 
-            buffer.flip();
-            buffer.putInt(-99);
-            buffer.flip();
-            binChannel.position(int2Pos);
-            binChannel.write(buffer);
+            Runnable reader = new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        Pipe.SourceChannel sourceChannel = pipe.source();
+                        ByteBuffer buffer = ByteBuffer.allocate(56);
 
-            binChannel.position(str2Pos);
-            binChannel.write(ByteBuffer.wrap(outputBytes2));
+                        for (int i = 0; i < 10; i++) {
+                            int bytesRead = sourceChannel.read(buffer);
+                            byte[] timeString = new byte[bytesRead];
+                            buffer.flip();
+                            buffer.get(timeString);
+                            buffer.clear();
+                            System.out.println(i + ". Reader Thread:\n\t" + new String(timeString));
+                            Thread.sleep(500);
+                        }
+                    } catch (IOException | InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            };
 
-            buffer.flip();
-            buffer.putInt(9999);
-            buffer.flip();
-            binChannel.write(buffer);
+            //               ________________________________
+            //               |             Pipe             |
+            //   Thread A -> | SinkChannel -> SourceChannel | -> Thread B
+            //               |______________________________|
 
-            RandomAccessFile ra = new RandomAccessFile("data.dat", "rwd");
-            FileChannel channel = ra.getChannel();
+            new Thread(writer).start();
+            new Thread(reader).start();
 
-            ByteBuffer readBuffer = ByteBuffer.allocate(Integer.BYTES);
-            channel.position(int3Pos);
-            channel.read(readBuffer);
-            readBuffer.flip();
-            System.out.println("int3 = " + readBuffer.getInt());
-
-            readBuffer.flip();
-            channel.position(int2Pos);
-            channel.read(readBuffer);
-            readBuffer.flip();
-            System.out.println("int2 = " + readBuffer.getInt());
-
-            readBuffer.flip();
-            channel.position(int1Pos);
-            channel.read(readBuffer);
-            readBuffer.flip();
-            System.out.println("int1 = " + readBuffer.getInt());
-
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
