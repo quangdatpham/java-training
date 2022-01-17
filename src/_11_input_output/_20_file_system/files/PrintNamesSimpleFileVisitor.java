@@ -21,7 +21,7 @@ public class PrintNamesSimpleFileVisitor extends SimpleFileVisitor<Path> {
     @Override
     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
         System.out.println("visitFile()          " + file.toAbsolutePath());
-        if (file.toAbsolutePath().toString().contains("_05_try_with_resources/Main.java"))
+        if (file.toAbsolutePath().toString().contains("_05_try_with_resources/PubSub.java"))
             return FileVisitResult.SKIP_SIBLINGS;
         return FileVisitResult.CONTINUE;
     }
